@@ -3,11 +3,12 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+source /app/functions.sh
+
 seconds_to_wait=3600
 ACME_CA_URI="${ACME_CA_URI:-https://acme-v01.api.letsencrypt.org/directory}"
 DEFAULT_KEY_SIZE=4096
-
-source /app/functions.sh
+REUSE_ACCOUNT_KEY="$(lc ${REUSE_ACCOUNT_KEY:-true})"
 
 create_link() {
     local -r target=${1?missing target argument}
@@ -112,6 +113,13 @@ update_certs() {
             add_location_configuration "$domain" || reload_nginx
         done
 
+        if [[ $REUSE_ACCOUNT_KEY == true ]]; then
+            # Symlink existing account key to current working dir if required
+            if [[ ! -e ./account_key.json && -f /etc/nginx/certs/account_key.json ]]; then
+                ln -sf /etc/nginx/certs/account_key.json ./account_key.json
+            fi
+        fi
+
         echo "Creating/renewal $base_domain certificates... (${hosts_array_expanded[*]})"
         /usr/bin/simp_le \
             -f account_key.json -f key.pem -f chain.pem -f fullchain.pem -f cert.pem \
@@ -122,6 +130,14 @@ update_certs() {
             --default_root /usr/share/nginx/html/
 
         simp_le_return=$?
+
+        if [[ $REUSE_ACCOUNT_KEY == true ]]; then
+            # Copy the created account key to the certs dir if there isn't one yet
+            if [[ ! -f /etc/nginx/certs/account_key.json && -f ./account_key.json ]]; then
+                cp ./account_key.json /etc/nginx/certs/account_key.json
+                ln -sf /etc/nginx/certs/account_key.json ./account_key.json
+            fi
+        fi
 
         popd
 
