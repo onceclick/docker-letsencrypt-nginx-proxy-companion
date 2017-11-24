@@ -145,10 +145,10 @@ The `LETSENCRYPT_KEYSIZE` variable determines the size of the requested key (in 
 
 **Note:** the `VIRTUAL_HOST` (or `LETSENCRYPT_HOST`) must be a reachable domain for LetEncrypt to be able to validate the challenge and provide the certificate.
 
-##### multi-domain ([SAN](https://www.digicert.com/subject-alternative-name.htm)) certificates
+##### Multi-domain ([SAN](https://www.digicert.com/subject-alternative-name.htm)) certificates
 If you want to create multi-domain ([SAN](https://www.digicert.com/subject-alternative-name.htm)) certificates add the base domain as the first domain of the `LETSENCRYPT_HOST` environment variable.
 
-##### test certificates
+##### Test certificates
 If you want to create test certificates that don't have the 5 certs/week/domain limits define the `LETSENCRYPT_TEST` environment variable with a value of `true` (in the containers where you request certificates with LETSENCRYPT_HOST). If you want to do this globally for all containers, set ACME_CA_URI as described below.
 
 ##### Automatic certificate renewal
@@ -164,13 +164,20 @@ $ docker run -d \
     tutum/apache-php
 ```
 
-#### Force certificates renewal
+##### Force certificates renewal
 
-If needed, you can force a running letsencrypt-nginx-proxy-companion container to renew all certificates that are currently in use. Replace `nginx-letsencrypt` with the name of your `letsencrypt-nginx-proxy-companion` container in the following command:
+If needed, you can force a running letsencrypt-nginx-proxy-companion container to renew all certificates that are currently in use. Replace `nginx-letsencrypt` with the name of your letsencrypt-nginx-proxy-companion container in the following command:
 
 ```bash
 $ docker exec nginx-letsencrypt /app/force_renew
 ```
+
+##### ACME account key
+After the container has generated its first certificate, it will copy the corresponding ACME account key to `/etc/nginx/certs/account_key.json` and will attempt to reuse it for all subsequent authorizations and issuances. If you have a pre-existing account key and wish to re use it, you can mount it inside the container with `-v /path/to/your/account_key.json:/etc/nginx/certs/account_key.json:ro`.
+
+If you want to disable the account key reutilization entirely, you can set the environment variable `REUSE_ACCOUNT_KEY` to `false` on the letsencrypt_nginx_proxy_companion container. This creates a new ACME registration and corresponding account for each new certificate issuance.
+
+Account key reutilization is enabled by default to avoid running into Let's Encrypt [rate limits](https://letsencrypt.org/docs/rate-limits/) issues with multiple account keys, especially when a lot of different test certificates are generated in a short period.
 
 #### Optional container environment variables
 
