@@ -7,11 +7,17 @@ boulder_ip="$(ifconfig docker0 | grep "inet addr:" | cut -d: -f2 | awk '{ print 
 # shellcheck source=../tests/test-functions.sh
 source ${TRAVIS_BUILD_DIR}/test/tests/test-functions.sh
 
+docker volume create certificates
+docker run --name helper -v certificates:/data busybox true
+docker cp ${TRAVIS_BUILD_DIR}/test/setup/dhparam.pem helper:/data
+docker rm helper
+
 case $SETUP in
 
   2containers)
     docker run -d -p 80:80 -p 443:443 \
       --name $NGINX_CONTAINER_NAME \
+      -v certificates:/etc/nginx/certs \
       -v /etc/nginx/vhost.d \
       -v /usr/share/nginx/html \
       -v /var/run/docker.sock:/tmp/docker.sock:ro \
@@ -34,7 +40,7 @@ case $SETUP in
     docker run -d -p 80:80 -p 443:443 \
       --name $NGINX_CONTAINER_NAME \
       -v /etc/nginx/conf.d \
-      -v /etc/nginx/certs \
+      -v certificates:/etc/nginx/certs \
       -v /etc/nginx/vhost.d \
       -v /usr/share/nginx/html \
       nginx:alpine
